@@ -9,7 +9,7 @@
     }
   },
   "dependencies": {
-    "timing-object": "^2.2.1",
+    "timing-object": "^2.2.2",
     "timing-provider": "^3.2.9",
     "tslib": "^1.10.0"
   },

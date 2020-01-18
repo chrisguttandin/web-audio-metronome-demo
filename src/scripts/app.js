@@ -75,7 +75,13 @@ const translateVector = (audioContext, { acceleration, position, timestamp, velo
 
     const { contextTime, performanceTime } = audioContext.getOutputTimestamp();
     const { currentTime } = audioContext;
-    const delta = currentTime - (timestamp - ((performanceTime / 1000) - contextTime));
+    const delta = (performanceTime === 0)
+        /*
+         * @todo Chrome (at least v79) takes a while until getOutputTimestamp() returns meaningful values. It keeps returning
+         * { contextTime: 0, performanceTime: 0 } for a bit after the context begins to run.
+         */
+        ? (performance.now() / 1000) - timestamp
+        : (performanceTime / 1000) - timestamp + currentTime - contextTime;
 
     return {
         currentTime,

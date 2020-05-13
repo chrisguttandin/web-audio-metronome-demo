@@ -11,7 +11,7 @@
   "dependencies": {
     "timing-object": "^3.1.5",
     "timing-provider": "^4.1.6",
-    "tslib": "^1.11.2"
+    "tslib": "^2.0.0"
   },
   "description": "A website to demo a Web Audio metronome connected to a Web Timing Object.",
   "devDependencies": {

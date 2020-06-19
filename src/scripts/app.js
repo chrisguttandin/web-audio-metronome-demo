@@ -16,7 +16,7 @@ const createAudioBuffer = (bufferDuration, sampleRate, soundDuration) => {
     const channelData = new Float32Array(numberOfFrames);
     const frequency = 330;
     const twoPi = Math.PI * 2;
-    const phaseOffset = twoPi * frequency / sampleRate;
+    const phaseOffset = (twoPi * frequency) / sampleRate;
 
     let amplitude = 1;
     let phase = 0;
@@ -41,7 +41,7 @@ const createAudioBuffer = (bufferDuration, sampleRate, soundDuration) => {
 const startAudioBufferSourceNode = (audioBuffer, audioContext, loopState, soundDuration, vector) => {
     const { currentTime, position, velocity } = translateVector(audioContext, vector);
     const loopEnd = 1 / velocity;
-    const startTime = currentTime + ((1 - (position % 1)) * loopEnd);
+    const startTime = currentTime + (1 - (position % 1)) * loopEnd;
 
     if (loopState !== null) {
         stopAudioBufferSourceNode(audioContext, currentTime, loopState, soundDuration);
@@ -57,7 +57,7 @@ const startAudioBufferSourceNode = (audioBuffer, audioContext, loopState, soundD
 
 // eslint-disable-next-line padding-line-between-statements
 const stopAudioBufferSourceNode = (audioContext, currentTime, { audioBufferSourceNode, loopEnd, startTime }, soundDuration) => {
-    audioBufferSourceNode.stop(startTime + (loopEnd * (Math.floor((currentTime - startTime) / loopEnd))) + soundDuration);
+    audioBufferSourceNode.stop(startTime + loopEnd * Math.floor((currentTime - startTime) / loopEnd) + soundDuration);
 
     const disconnectAudioBufferSourceNode = () => {
         audioBufferSourceNode.removeEventListener('ended', disconnectAudioBufferSourceNode);
@@ -75,147 +75,148 @@ const translateVector = (audioContext, { acceleration, position, timestamp, velo
 
     const { contextTime, performanceTime } = audioContext.getOutputTimestamp();
     const { currentTime } = audioContext;
-    const delta = (performanceTime === 0)
-        /*
-         * @todo Chrome (at least v79) takes a while until getOutputTimestamp() returns meaningful values. It keeps returning
-         * { contextTime: 0, performanceTime: 0 } for a bit after the context begins to run.
-         */
-        ? (performance.now() / 1000) - timestamp
-        : (performanceTime / 1000) - timestamp + currentTime - contextTime;
+    const delta =
+        performanceTime === 0
+            ? /*
+               * @todo Chrome (at least v79) takes a while until getOutputTimestamp() returns meaningful values. It keeps returning
+               * { contextTime: 0, performanceTime: 0 } for a bit after the context begins to run.
+               */
+              performance.now() / 1000 - timestamp
+            : performanceTime / 1000 - timestamp + currentTime - contextTime;
 
     return {
         currentTime,
-        position: position + (velocity * delta),
+        position: position + velocity * delta,
         velocity
     };
 };
 
 // eslint-disable-next-line padding-line-between-statements
-const waitForConnection = () => new Promise((resolve) => {
-    const timingObject = new TimingObject(new TimingProvider('abcdefghijklmno56789'));
-    const resolvePromiseWhenOpen = () => {
-        timingObject.removeEventListener('readystatechange', resolvePromiseWhenOpen);
+const waitForConnection = () =>
+    new Promise((resolve) => {
+        const timingObject = new TimingObject(new TimingProvider('abcdefghijklmno56789'));
+        const resolvePromiseWhenOpen = () => {
+            timingObject.removeEventListener('readystatechange', resolvePromiseWhenOpen);
 
-        if (timingObject.readyState === 'open') {
-            resolve(timingObject);
-        }
+            if (timingObject.readyState === 'open') {
+                resolve(timingObject);
+            }
+        };
+
+        timingObject.addEventListener('readystatechange', resolvePromiseWhenOpen);
+    });
+
+waitForConnection().then((timingObject) => {
+    $bpmInput.disabled = false;
+    $connectingMessageSpan.style.display = 'none';
+    $metronomeButton.disabled = false;
+
+    const audioContext = new AudioContext();
+    const sampleRate = audioContext.sampleRate;
+    const bufferDuration = 2;
+    const soundDuration = 0.02;
+    const audioBuffer = createAudioBuffer(bufferDuration, sampleRate, soundDuration);
+    const min = parseInt($bpmInput.min, 10);
+    const max = parseInt($bpmInput.max, 10);
+
+    // eslint-disable-next-line padding-line-between-statements
+    const getBpm = () => Math.min(max, Math.max(min, Math.round(parseFloat($bpmInput.value))));
+
+    // eslint-disable-next-line padding-line-between-statements
+    const isTimingObjectMoving = () => {
+        const { velocity } = timingObject.query();
+
+        return velocity !== 0;
     };
 
-    timingObject.addEventListener('readystatechange', resolvePromiseWhenOpen);
-});
+    // eslint-disable-next-line padding-line-between-statements
+    const restartTimer = () => {
+        clearInterval(intervalId);
+        startTimer();
+    };
 
-waitForConnection()
-    .then((timingObject) => {
-        $bpmInput.disabled = false;
-        $connectingMessageSpan.style.display = 'none';
-        $metronomeButton.disabled = false;
+    // eslint-disable-next-line padding-line-between-statements
+    const setBpm = (value) => {
+        bpm = value;
+        $bpmInput.value = value;
+    };
 
-        const audioContext = new AudioContext();
-        const sampleRate = audioContext.sampleRate;
-        const bufferDuration = 2;
-        const soundDuration = 0.02;
-        const audioBuffer = createAudioBuffer(bufferDuration, sampleRate, soundDuration);
-        const min = parseInt($bpmInput.min, 10);
-        const max = parseInt($bpmInput.max, 10);
+    // eslint-disable-next-line padding-line-between-statements
+    const startTimer = () => {
+        loopState = startAudioBufferSourceNode(audioBuffer, audioContext, loopState, soundDuration, timingObject.query());
 
-        // eslint-disable-next-line padding-line-between-statements
-        const getBpm = () => Math.min(max, Math.max(min, Math.round(parseFloat($bpmInput.value))));
-
-        // eslint-disable-next-line padding-line-between-statements
-        const isTimingObjectMoving = () => {
-            const { velocity } = timingObject.query();
-
-            return velocity !== 0;
-        };
-
-        // eslint-disable-next-line padding-line-between-statements
-        const restartTimer = () => {
-            clearInterval(intervalId);
-            startTimer();
-        };
-
-        // eslint-disable-next-line padding-line-between-statements
-        const setBpm = (value) => {
-            bpm = value;
-            $bpmInput.value = value;
-        };
-
-        // eslint-disable-next-line padding-line-between-statements
-        const startTimer = () => {
+        intervalId = setInterval(() => {
             loopState = startAudioBufferSourceNode(audioBuffer, audioContext, loopState, soundDuration, timingObject.query());
+        }, 1000 + Math.random() * 1000);
+    };
 
-            intervalId = setInterval(() => {
-                loopState = startAudioBufferSourceNode(audioBuffer, audioContext, loopState, soundDuration, timingObject.query());
-            }, 1000 + (Math.random() * 1000));
-        };
+    // eslint-disable-next-line padding-line-between-statements
+    const stopTimer = () => {
+        clearInterval(intervalId);
+        stopAudioBufferSourceNode(audioContext, audioContext.currentTime, loopState, soundDuration);
 
-        // eslint-disable-next-line padding-line-between-statements
-        const stopTimer = () => {
-            clearInterval(intervalId);
-            stopAudioBufferSourceNode(audioContext, audioContext.currentTime, loopState, soundDuration);
+        intervalId = null;
+        loopState = null;
+    };
 
-            intervalId = null;
-            loopState = null;
-        };
+    // eslint-disable-next-line padding-line-between-statements
+    const updateVelocity = (value) => timingObject.update({ velocity: convertBpmToVelocity(value) });
 
-        // eslint-disable-next-line padding-line-between-statements
-        const updateVelocity = (value) => timingObject.update({ velocity: convertBpmToVelocity(value) });
+    let bpm = getBpm();
+    let intervalId = null;
+    let loopState = null;
 
-        let bpm = getBpm();
-        let intervalId = null;
-        let loopState = null;
+    $bpmInput.addEventListener('change', () => {
+        const value = getBpm();
 
-        $bpmInput.addEventListener('change', () => {
-            const value = getBpm();
+        setBpm(value);
 
-            setBpm(value);
+        if (isTimingObjectMoving()) {
+            updateVelocity(value);
+        }
 
-            if (isTimingObjectMoving()) {
-                updateVelocity(value);
+        if (intervalId !== null) {
+            restartTimer();
+        }
+    });
+
+    $metronomeButton.addEventListener('click', () => {
+        if (intervalId === null) {
+            $metronomeButton.textContent = 'mute metronome';
+
+            if (!isTimingObjectMoving()) {
+                updateVelocity(bpm);
             }
+
+            if (audioContext.state === 'suspended') {
+                audioContext.resume().catch();
+            }
+
+            startTimer();
+        } else {
+            $metronomeButton.textContent = 'unmute metronome';
+
+            stopTimer();
+        }
+    });
+
+    timingObject.addEventListener('change', () => {
+        const { velocity } = timingObject.query();
+
+        if (velocity === 0) {
+            $metronomeButton.textContent = 'start metronome';
 
             if (intervalId !== null) {
-                restartTimer();
-            }
-        });
-
-        $metronomeButton.addEventListener('click', () => {
-            if (intervalId === null) {
-                $metronomeButton.textContent = 'mute metronome';
-
-                if (!isTimingObjectMoving()) {
-                    updateVelocity(bpm);
-                }
-
-                if (audioContext.state === 'suspended') {
-                    audioContext.resume().catch();
-                }
-
-                startTimer();
-            } else {
-                $metronomeButton.textContent = 'unmute metronome';
-
                 stopTimer();
             }
-        });
+        } else {
+            setBpm(Math.round(velocity * 60));
 
-        timingObject.addEventListener('change', () => {
-            const { velocity } = timingObject.query();
-
-            if (velocity === 0) {
-                $metronomeButton.textContent = 'start metronome';
-
-                if (intervalId !== null) {
-                    stopTimer();
-                }
+            if (intervalId === null) {
+                $metronomeButton.textContent = 'unmute metronome';
             } else {
-                setBpm(Math.round(velocity * 60));
-
-                if (intervalId === null) {
-                    $metronomeButton.textContent = 'unmute metronome';
-                } else {
-                    restartTimer();
-                }
+                restartTimer();
             }
-        });
+        }
     });
+});

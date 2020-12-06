@@ -15,7 +15,7 @@
     "description": "A website to demo a Web Audio metronome connected to a Web Timing Object.",
     "devDependencies": {
         "@babel/core": "^7.12.9",
-        "@babel/preset-env": "^7.12.1",
+        "@babel/preset-env": "^7.12.7",
         "@commitlint/cli": "^11.0.0",
         "@commitlint/config-angular": "^11.0.0",
         "autoprefixer": "^9.8.6",

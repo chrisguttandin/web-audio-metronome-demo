@@ -9,7 +9,7 @@
         }
     },
     "dependencies": {
-        "timing-object": "^3.1.25",
+        "timing-object": "^3.1.26",
         "timing-provider": "^4.3.27"
     },
     "description": "A website to demo a Web Audio metronome connected to a Web Timing Object.",

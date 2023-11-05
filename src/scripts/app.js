@@ -112,12 +112,12 @@ waitForConnection().then((timingObject) => {
     $metronomeButton.disabled = false;
 
     const audioContext = new AudioContext();
-    const sampleRate = audioContext.sampleRate;
-    const bufferDuration = 2;
-    const soundDuration = 0.02;
-    const audioBuffer = createAudioBuffer(bufferDuration, sampleRate, soundDuration);
     const min = parseInt($bpmInput.min, 10);
+    const bufferDuration = 60 / min;
+    const sampleRate = audioContext.sampleRate;
     const max = parseInt($bpmInput.max, 10);
+    const soundDuration = 6 / max;
+    const audioBuffer = createAudioBuffer(bufferDuration, sampleRate, soundDuration);
 
     // eslint-disable-next-line padding-line-between-statements
     const getBpm = () => Math.min(max, Math.max(min, Math.round(parseFloat($bpmInput.value))));

@@ -45,6 +45,7 @@
     "license": "MIT",
     "main": "src/index.html",
     "name": "web-audio-metronome-demo",
+    "packageManager": "npm@12",
     "private": true,
     "repository": {
         "type": "git",
